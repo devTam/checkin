@@ -76,16 +76,20 @@ const QRDisplay = () => {
     <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-900 transition-colors">
       <audio ref={audioRef} src={successSound} />
 
-      <header className="bg-white dark:bg-gray-800 p-6 shadow-lg transition-colors">
-        <div className="mx-auto max-w-[200px] mb-4">
-          <img src={logo} alt="Spin and Drive Logo" className="w-full" />
+      <header className="bg-white dark:bg-gray-800 p-4 shadow-lg transition-colors flex items-center justify-between">
+        <div className="!w-[50px] shrink-0">
+          <img
+            src={logo}
+            alt="Spin and Drive Logo"
+            className="!w-[50px] h-auto"
+          />
         </div>
-        <p className="text-center text-gray-600 dark:text-gray-400 transition-colors">
+        <p className="text-gray-600 dark:text-gray-400 transition-colors">
           {format(new Date(), "EEEE, MMMM do yyyy")}
         </p>
       </header>
 
-      <main className="flex flex-1 items-center justify-center p-8">
+      <main className="flex flex-1 items-center justify-center p-4">
         {checkInEvent ? (
           <div className="animate-fade-in text-center">
             <div className="mx-auto mb-6 h-32 w-32 overflow-hidden rounded-full ring-4 ring-red-600 dark:ring-red-500">
@@ -98,17 +102,19 @@ const QRDisplay = () => {
             <h2 className="mb-2 text-3xl font-bold text-gray-800 dark:text-gray-100">
               Welcome, {checkInEvent.user.firstName}!
             </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300">Check-in successful</p>
+            <p className="text-lg text-gray-600 dark:text-gray-300">
+              Check-in successful
+            </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {format(new Date(checkInEvent.timestamp), "h:mm a")}
             </p>
           </div>
         ) : (
           <div className="animate-fade-in text-center">
-            <div className="mb-8 inline-block rounded-lg bg-white dark:bg-gray-800 p-8 shadow-xl transition-all hover:shadow-2xl">
-              <QRCodeSVG 
-                value={qrCode} 
-                size={300}
+            <div className="mb-4 inline-block rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl transition-all hover:shadow-2xl">
+              <QRCodeSVG
+                value={qrCode}
+                size={400}
                 level="H"
                 className="dark:bg-white dark:p-4 dark:rounded-lg"
               />
