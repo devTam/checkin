@@ -16,10 +16,11 @@ export const initializeSocket = (options?: Partial<ManagerOptions & SocketOption
       reconnectionAttempts: 5,
       secure: true,
       withCredentials: true,
+      timeout: 20000,
       extraHeaders: {
         "Access-Control-Allow-Origin": "*"
       },
-      path: '/socket.io' // Make sure this matches your server's Socket.IO path
+      path: '/socket.io'
     })
 
     // Debug listeners
@@ -31,7 +32,13 @@ export const initializeSocket = (options?: Partial<ManagerOptions & SocketOption
     socket.on('connect_error', (error) => {
       console.error('Socket connection error:', {
         message: error.message,
+        context: socket?.io?.engine?.transport?.name
       });
+      
+      if (socket?.io?.engine?.transport?.name === 'websocket') {
+        console.log('Attempting to fallback to polling transport');
+        socket.io.opts.transports = ['polling'];
+      }
     });
 
     socket.on('disconnect', (reason) => {
