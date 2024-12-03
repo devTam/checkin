@@ -15,15 +15,10 @@ const QRDisplay = () => {
   const [error, setError] = useState<string>("")
 
   useEffect(() => {
-    console.log('Socket URL:', import.meta.env.VITE_SOCKET_URL || "wss://spinanddrive-backend.onrender.com");
+    console.log('Socket URL:', import.meta.env.VITE_SOCKET_URL || "ws://spinanddrive-backend.onrender.com");
     const socket = initializeSocket({
-      transports: ["websocket", "polling"],
-      timeout: 10000,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      secure: true,
-      rejectUnauthorized: false
+      transports: ["websocket"],
+      reconnectionAttempts: 5
     })
 
     const handleConnect = () => {
