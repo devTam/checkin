@@ -1,4 +1,3 @@
-import "./App.css"
 import QRDisplay from "./components/QRDisplay"
 
 function App() {

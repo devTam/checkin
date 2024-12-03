@@ -4,11 +4,13 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in',
         'slide-up': 'slideUp 0.5s ease-out',
+        'pulse-slow': 'pulse 3s linear infinite',
       },
       keyframes: {
         fadeIn: {

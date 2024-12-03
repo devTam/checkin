@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react"
 import { QRCodeSVG } from "qrcode.react"
 import { format } from "date-fns"
-import { initializeSocket } from "../services/socket"
+import {
+  initializeSocket,
+  getSocket,
+  disconnectSocket,
+} from "../services/socket"
 import { getQRCode } from "../services/api"
 import { CheckInEvent } from "../types"
 import successSound from "../assets/success.mp3"
@@ -14,11 +18,20 @@ const QRDisplay = () => {
   const [error, setError] = useState<string>("")
 
   useEffect(() => {
-    let socket = initializeSocket()
+    const socket = initializeSocket({
+      transports: ["websocket", "polling"],
+      timeout: 10000,
+    })
 
     const handleConnect = () => {
-      console.log("Connected to WebSocket")
       fetchQRCode()
+      console.log("Connected to WebSocket")
+      setError("")
+    }
+
+    const handleConnectError = (err: Error) => {
+      console.error("Connection error:", err)
+      setError("Failed to connect to server")
     }
 
     const handleCheckInSuccess = (data: CheckInEvent) => {
@@ -38,16 +51,13 @@ const QRDisplay = () => {
     }
 
     socket.on("connect", handleConnect)
+    socket.on("connect_error", handleConnectError)
     socket.on("checkInSuccess", handleCheckInSuccess)
     socket.on("qrCodeRefresh", handleQRCodeRefresh)
     socket.on("disconnect", handleDisconnect)
 
     return () => {
-      socket.off("connect", handleConnect)
-      socket.off("checkInSuccess", handleCheckInSuccess)
-      socket.off("qrCodeRefresh", handleQRCodeRefresh)
-      socket.off("disconnect", handleDisconnect)
-      socket.disconnect()
+      disconnectSocket()
     }
   }, [])
 
@@ -63,15 +73,27 @@ const QRDisplay = () => {
     }
   }
 
+  const renderQRCode = () => {
+    if (!qrCode) return null
+
+    return (
+      <div
+        className="qr-wrapper dark:bg-white dark:p-4 dark:rounded-lg flex items-center justify-center animate-pulse-slow"
+        dangerouslySetInnerHTML={{ __html: qrCode }}
+        style={{ width: 350, height: 350 }}
+      />
+    )
+  }
+
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center bg-red-950 dark:bg-red-900">
-        <div className="text-center text-red-50">
-          <h2 className="text-2xl font-bold">Error</h2>
-          <p>{error}</p>
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-red-900 to-red-950 dark:from-red-800 dark:to-red-900">
+        <div className="text-center text-red-50 p-8 backdrop-blur-sm bg-white/10 rounded-xl">
+          <h2 className="text-3xl font-bold mb-4">Error</h2>
+          <p className="mb-6">{error}</p>
           <button
             onClick={fetchQRCode}
-            className="mt-4 rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700 transition-colors"
+            className="mt-4 rounded-lg bg-red-600 px-6 py-3 text-white hover:bg-red-700 transition-all hover:scale-105 active:scale-95 font-medium"
           >
             Retry
           </button>
@@ -81,61 +103,49 @@ const QRDisplay = () => {
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 transition-colors relative">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-colors relative">
       <audio ref={audioRef} src={successSound} />
 
-      <header className="bg-white dark:bg-gray-800 p-4 shadow-lg transition-colors flex items-center justify-between">
-        {/* <div style={{ width: "20px", height: "auto", position: "absolute", left: "10px" }}>
-          <img
-            src={logo}
-            alt="Spin and Drive Logo"
-            className="!w-[50px] h-auto"
-          />
-        </div> */}
-        <p className="text-gray-600 dark:text-gray-400 transition-colors">
+      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 shadow-lg transition-colors">
+        <p className="text-gray-600 dark:text-gray-400 transition-colors text-lg font-medium">
           {format(new Date(), "EEEE, MMMM do yyyy")}
         </p>
       </header>
 
-      <main className="flex flex-1 items-center justify-center p-4">
+      <main className="flex flex-1 items-center justify-center p-8 min-h-[calc(100vh-200px)]">
         {checkInEvent ? (
-          <div className="animate-fade-in text-center">
-            <div className="mx-auto mb-6 h-32 w-32 overflow-hidden rounded-full ring-4 ring-red-600 dark:ring-red-500">
+          <div className="animate-fade-in text-center transform transition-all duration-500 scale-105">
+            <div className="mx-auto mb-8 h-40 w-40 overflow-hidden rounded-full ring-8 ring-red-600 dark:ring-red-500 shadow-2xl">
               <img
                 src={checkInEvent.user.avatar || "/default-avatar.png"}
                 alt="Profile"
                 className="h-full w-full object-cover"
               />
             </div>
-            <h2 className="mb-2 text-3xl font-bold text-gray-800 dark:text-gray-100">
+            <h2 className="mb-4 text-4xl font-bold text-gray-800 dark:text-gray-100">
               Welcome, {checkInEvent.user.firstName}!
             </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300">
+            <p className="text-xl text-gray-600 dark:text-gray-300 mb-2">
               Check-in successful
             </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-md text-gray-500 dark:text-gray-400">
               {format(new Date(checkInEvent.timestamp), "h:mm a")}
             </p>
           </div>
         ) : (
           <div className="animate-fade-in text-center">
-            <div className="mb-4 inline-block rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl transition-all hover:shadow-2xl">
-              <QRCodeSVG
-                value={qrCode}
-                size={300}
-                level="H"
-                className="dark:bg-white dark:p-4 dark:rounded-lg"
-              />
+            <div className="mb-6 rounded-2xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-8 shadow-2xl transition-all hover:shadow-3xl">
+              {renderQRCode()}
             </div>
-            <p className="text-xl text-gray-600 dark:text-gray-300">
+            <p className="text-2xl text-gray-600 dark:text-gray-300 font-medium">
               Scan to check in
             </p>
           </div>
         )}
       </main>
 
-      <footer className="bg-white dark:bg-gray-800 p-6 text-center text-gray-600 dark:text-gray-400 shadow-inner transition-colors">
-        <p>Please have your phone ready to scan</p>
+      <footer className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 text-center text-gray-600 dark:text-gray-400 shadow-inner transition-colors">
+        <p className="text-lg">Please have your phone ready to scan</p>
       </footer>
     </div>
   )
