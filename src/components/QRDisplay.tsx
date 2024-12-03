@@ -1,15 +1,12 @@
 import { useEffect, useRef, useState } from "react"
-import { QRCodeSVG } from "qrcode.react"
 import { format } from "date-fns"
 import {
   initializeSocket,
-  getSocket,
   disconnectSocket,
 } from "../services/socket"
 import { getQRCode } from "../services/api"
 import { CheckInEvent } from "../types"
 import successSound from "../assets/success.mp3"
-import logo from "../assets/logo.svg"
 
 const QRDisplay = () => {
   const [qrCode, setQRCode] = useState<string>("")
@@ -62,14 +59,11 @@ const QRDisplay = () => {
   }, [])
 
   const fetchQRCode = async () => {
-    console.log("Fetching QR code")
     try {
       const data = await getQRCode()
-      console.log("Fetched new QR code:", data)
       setQRCode(data.qrCodeData)
     } catch (err) {
       setError("Failed to fetch QR code")
-      console.error("QR code fetch error:", err)
     }
   }
 
