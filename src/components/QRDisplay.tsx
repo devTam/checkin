@@ -194,11 +194,19 @@ const QRDisplay = () => {
         {checkInEvent ? (
           <div className="animate-fade-in text-center transform transition-all duration-500 scale-105">
             <div className="mx-auto mb-4 h-32 w-32 overflow-hidden rounded-full ring-6 ring-red-600 dark:ring-red-500 shadow-2xl">
-              <img
-                src={checkInEvent.user.avatar || "/default-avatar.png"}
-                alt="Profile"
-                className="h-full w-full object-cover"
-              />
+              {checkInEvent.user.avatar ? (
+                <img
+                  src={checkInEvent.user.avatar}
+                  alt="Profile"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+                  <svg className="h-20 w-20 text-gray-500 dark:text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                  </svg>
+                </div>
+              )}
             </div>
             <h2 className="mb-2 text-3xl font-bold text-gray-800 dark:text-gray-100">
               Welcome, {checkInEvent.user.firstName}!
