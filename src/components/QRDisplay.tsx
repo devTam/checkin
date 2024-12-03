@@ -73,17 +73,17 @@ const QRDisplay = () => {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="bg-gray-50 dark:bg-gray-900 transition-colors relative">
       <audio ref={audioRef} src={successSound} />
 
       <header className="bg-white dark:bg-gray-800 p-4 shadow-lg transition-colors flex items-center justify-between">
-        <div className="!w-[50px] shrink-0">
+        {/* <div style={{ width: "20px", height: "auto", position: "absolute", left: "10px" }}>
           <img
             src={logo}
             alt="Spin and Drive Logo"
             className="!w-[50px] h-auto"
           />
-        </div>
+        </div> */}
         <p className="text-gray-600 dark:text-gray-400 transition-colors">
           {format(new Date(), "EEEE, MMMM do yyyy")}
         </p>
@@ -114,7 +114,7 @@ const QRDisplay = () => {
             <div className="mb-4 inline-block rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl transition-all hover:shadow-2xl">
               <QRCodeSVG
                 value={qrCode}
-                size={400}
+                size={300}
                 level="H"
                 className="dark:bg-white dark:p-4 dark:rounded-lg"
               />
