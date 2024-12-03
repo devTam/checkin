@@ -7,12 +7,17 @@ import {
 import { getQRCode } from "../services/api"
 import { CheckInEvent } from "../types"
 import successSound from "../assets/success.mp3"
+import { useLoading } from "../contexts/LoadingContext"
+import { motion } from "framer-motion"
+import toast from "react-hot-toast"
 
 const QRDisplay = () => {
   const [qrCode, setQRCode] = useState<string>("")
   const [checkInEvent, setCheckInEvent] = useState<CheckInEvent | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [error, setError] = useState<string>("")
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const { isLoading, setIsLoading } = useLoading()
 
   useEffect(() => {
     console.log('Socket URL:', import.meta.env.VITE_SOCKET_URL);
@@ -32,13 +37,27 @@ const QRDisplay = () => {
     const handleCheckInSuccess = (data: CheckInEvent) => {
       console.log("Check-in success received:", data)
       setCheckInEvent(data)
-      audioRef.current?.play()
+      if (audioEnabled && audioRef.current) {
+        audioRef.current.play().catch(err => {
+          console.warn('Failed to play success sound:', err);
+        });
+      }
     }
 
     const handleQRCodeRefresh = (data: { qrCodeData: string }) => {
       console.log("QR code refresh received:", data)
       setQRCode(data.qrCodeData)
       setCheckInEvent(null)
+    }
+
+    const handleCheckInExists = (data: CheckInEvent) => {
+      console.log("Check-in exists received:", data)
+      setCheckInEvent(data)
+      if (audioEnabled && audioRef.current) {
+        audioRef.current.play().catch(err => {
+          console.warn('Failed to play success sound:', err);
+        });
+      }
     }
 
     const handleDisconnect = () => {
@@ -48,6 +67,7 @@ const QRDisplay = () => {
     socket.on("connect", handleConnect)
     socket.on("connect_error", handleConnectError)
     socket.on("checkInSuccess", handleCheckInSuccess)
+    socket.on("checkInExists", handleCheckInExists)
     socket.on("qrCodeRefresh", handleQRCodeRefresh)
     socket.on("disconnect", handleDisconnect)
 
@@ -63,14 +83,19 @@ const QRDisplay = () => {
     return () => {
       disconnectSocket()
     }
-  }, [])
+  }, [audioEnabled])
 
   const fetchQRCode = async () => {
+    setIsLoading(true)
     try {
       const data = await getQRCode()
       setQRCode(data.qrCodeData)
+      toast.success('QR Code updated successfully')
     } catch (err) {
       setError("Failed to fetch QR code")
+      toast.error('Failed to fetch QR code')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -86,10 +111,41 @@ const QRDisplay = () => {
     )
   }
 
+  const initializeAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.play()
+        .then(() => {
+          audioRef.current?.pause();
+          audioRef.current?.load();
+          setAudioEnabled(true);
+        })
+        .catch(err => {
+          console.warn('Audio autoplay failed:', err);
+          setAudioEnabled(false);
+        });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center" role="status">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="loading-spinner"
+          aria-label="Loading QR code"
+        >
+          {/* Add your loading spinner here */}
+        </motion.div>
+      </div>
+    )
+  }
+
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-red-900 to-red-950 dark:from-red-800 dark:to-red-900">
-        <div className="text-center text-red-50 p-8 backdrop-blur-sm bg-white/10 rounded-xl">
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-red-800 to-red-900 dark:from-red-700 dark:to-red-800">
+        <div className="text-center text-red-50 p-8 backdrop-blur-sm bg-white/20 rounded-xl">
           <h2 className="text-3xl font-bold mb-4">Error</h2>
           <p className="mb-6">{error}</p>
           <button
@@ -104,10 +160,31 @@ const QRDisplay = () => {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-colors relative flex flex-col">
-      <audio ref={audioRef} src={successSound} />
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-colors relative flex flex-col"
+      role="main"
+    >
+      <audio ref={audioRef} src={successSound} preload="auto" />
 
-      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm py-2 px-4 shadow-lg transition-colors">
+      <button
+        onClick={audioEnabled ? () => setAudioEnabled(false) : initializeAudio}
+        className="absolute top-4 right-4 px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center gap-2 z-20"
+      >
+        {audioEnabled ? (
+          <>
+            <span>🔊</span> Sound On
+          </>
+        ) : (
+          <>
+            <span>🔈</span> Sound Off
+          </>
+        )}
+      </button>
+
+      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm py-2 px-4 shadow-lg transition-colors z-10">
         <p className="text-gray-600 dark:text-gray-400 transition-colors text-base font-medium">
           {format(new Date(), "EEEE, MMMM do yyyy")}
         </p>
@@ -148,7 +225,7 @@ const QRDisplay = () => {
       <footer className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm py-2 px-4 text-center text-gray-600 dark:text-gray-400 shadow-inner transition-colors">
         <p className="text-base">Please have your phone ready to scan</p>
       </footer>
-    </div>
+    </motion.div>
   )
 }
 
