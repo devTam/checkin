@@ -15,11 +15,8 @@ const QRDisplay = () => {
   const [error, setError] = useState<string>("")
 
   useEffect(() => {
-    console.log('Socket URL:', import.meta.env.VITE_SOCKET_URL || "ws://spinanddrive-backend.onrender.com");
-    const socket = initializeSocket({
-      transports: ["websocket"],
-      reconnectionAttempts: 5
-    })
+    console.log('Socket URL:', import.meta.env.VITE_SOCKET_URL);
+    const socket = initializeSocket()
 
     const handleConnect = () => {
       fetchQRCode()

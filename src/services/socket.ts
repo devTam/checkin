@@ -9,7 +9,7 @@ export const initializeSocket = (options?: Partial<ManagerOptions & SocketOption
 
     socket = io(socketUrl, {
       ...options,
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -18,7 +18,7 @@ export const initializeSocket = (options?: Partial<ManagerOptions & SocketOption
       withCredentials: true,
       timeout: 20000,
       extraHeaders: {
-        "Access-Control-Allow-Origin": "*"
+        "Access-Control-Allow-Origin": "https://spinanddrive-checkin.onrender.com"
       },
       path: '/socket.io'
     })
@@ -34,11 +34,6 @@ export const initializeSocket = (options?: Partial<ManagerOptions & SocketOption
         message: error.message,
         context: socket?.io?.engine?.transport?.name
       });
-      
-      if (socket?.io?.engine?.transport?.name === 'websocket') {
-        console.log('Attempting to fallback to polling transport');
-        socket.io.opts.transports = ['polling'];
-      }
     });
 
     socket.on('disconnect', (reason) => {
