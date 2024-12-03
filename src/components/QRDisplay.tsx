@@ -18,6 +18,11 @@ const QRDisplay = () => {
     const socket = initializeSocket({
       transports: ["websocket", "polling"],
       timeout: 10000,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      secure: true,
+      rejectUnauthorized: false
     })
 
     const handleConnect = () => {
@@ -28,7 +33,7 @@ const QRDisplay = () => {
 
     const handleConnectError = (err: Error) => {
       console.error("Connection error:", err)
-      setError("Failed to connect to server")
+      setError(`Failed to connect to server: ${err.message}`)
     }
 
     const handleCheckInSuccess = (data: CheckInEvent) => {
@@ -52,6 +57,15 @@ const QRDisplay = () => {
     socket.on("checkInSuccess", handleCheckInSuccess)
     socket.on("qrCodeRefresh", handleQRCodeRefresh)
     socket.on("disconnect", handleDisconnect)
+
+    socket.on("reconnect_attempt", (attempt) => {
+      console.log(`Reconnection attempt ${attempt}`)
+    })
+
+    socket.on("reconnect_error", (err) => {
+      console.error("Reconnection error:", err)
+      setError(`Failed to reconnect: ${err.message}`)
+    })
 
     return () => {
       disconnectSocket()
