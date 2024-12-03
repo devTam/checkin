@@ -1,12 +1,16 @@
 import { io, Socket } from "socket.io-client"
-import { config } from "../config/env"
 
 let socket: Socket | null = null
 
 export const initializeSocket = () => {
   if (!socket) {
-    socket = io(config.WS_URL)
+    socket = io(import.meta.env.VITE_API_URL || "http://localhost:9000", {
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    })
   }
+
   return socket
 }
 

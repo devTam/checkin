@@ -14,37 +14,45 @@ const QRDisplay = () => {
   const [error, setError] = useState<string>("")
 
   useEffect(() => {
-    const socket = initializeSocket()
-    // fetchQRCode()
+    let socket = initializeSocket()
 
-    socket.on("connect", () => {
+    const handleConnect = () => {
       console.log("Connected to WebSocket")
       fetchQRCode()
-    })
+    }
 
-    socket.on("checkInSuccess", (data: CheckInEvent) => {
+    const handleCheckInSuccess = (data: CheckInEvent) => {
       console.log("Check-in success received:", data)
       setCheckInEvent(data)
       audioRef.current?.play()
-    })
+    }
 
-    socket.on("qrCodeRefresh", (data: { qrCodeData: string }) => {
+    const handleQRCodeRefresh = (data: { qrCodeData: string }) => {
       console.log("QR code refresh received:", data)
       setQRCode(data.qrCodeData)
       setCheckInEvent(null)
-    })
+    }
 
-    socket.on("disconnect", () => {
+    const handleDisconnect = () => {
       console.log("Disconnected from WebSocket")
-    })
+    }
+
+    socket.on("connect", handleConnect)
+    socket.on("checkInSuccess", handleCheckInSuccess)
+    socket.on("qrCodeRefresh", handleQRCodeRefresh)
+    socket.on("disconnect", handleDisconnect)
 
     return () => {
-      console.log("Cleaning up socket connection")
+      socket.off("connect", handleConnect)
+      socket.off("checkInSuccess", handleCheckInSuccess)
+      socket.off("qrCodeRefresh", handleQRCodeRefresh)
+      socket.off("disconnect", handleDisconnect)
       socket.disconnect()
     }
   }, [])
 
   const fetchQRCode = async () => {
+    console.log("Fetching QR code")
     try {
       const data = await getQRCode()
       console.log("Fetched new QR code:", data)

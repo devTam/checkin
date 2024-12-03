@@ -9,6 +9,6 @@ const api = axios.create({
 })
 
 export const getQRCode = async () => {
-  const response = await api.get("/check-in/daily-qr-code")
+  const response = await api.get("/api/check-in/daily-qr-code")
   return response.data.data
 }
