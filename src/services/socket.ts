@@ -4,13 +4,39 @@ let socket: Socket | null = null
 
 export const initializeSocket = (options?: Partial<ManagerOptions & SocketOptions>) => {
   if (!socket) {
-    socket = io(import.meta.env.VITE_SOCKET_URL, {
+    const socketUrl = import.meta.env.VITE_SOCKET_URL;
+    console.log('Initializing socket connection to:', socketUrl);
+
+    socket = io(socketUrl, {
       ...options,
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5
+      reconnectionAttempts: 5,
+      secure: true,
+      withCredentials: true,
+      extraHeaders: {
+        "Access-Control-Allow-Origin": "*"
+      },
+      path: '/socket.io' // Make sure this matches your server's Socket.IO path
     })
+
+    // Debug listeners
+    socket.on('connect', () => {
+      console.log('Socket connected successfully');
+      console.log('Transport:', socket?.io?.engine?.transport?.name);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', {
+        message: error.message,
+      });
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason);
+    });
   }
   return socket
 }
@@ -19,6 +45,7 @@ export const getSocket = () => socket
 
 export const disconnectSocket = () => {
   if (socket) {
+    console.log('Disconnecting socket');
     socket.disconnect()
     socket = null
   }

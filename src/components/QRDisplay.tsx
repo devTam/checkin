@@ -15,6 +15,7 @@ const QRDisplay = () => {
   const [error, setError] = useState<string>("")
 
   useEffect(() => {
+    console.log('Socket URL:', import.meta.env.VITE_SOCKET_URL);
     const socket = initializeSocket({
       transports: ["websocket", "polling"],
       timeout: 10000,
