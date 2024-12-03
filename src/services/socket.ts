@@ -4,7 +4,7 @@ let socket: Socket | null = null
 
 export const initializeSocket = (options?: Partial<ManagerOptions & SocketOptions>) => {
   if (!socket) {
-    const socketUrl = import.meta.env.VITE_SOCKET_URL;
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || "wss://spinanddrive-backend.onrender.com";
     console.log('Initializing socket connection to:', socketUrl);
 
     socket = io(socketUrl, {
