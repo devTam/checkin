@@ -1,29 +1,26 @@
 import { useEffect, useRef, useState } from "react"
 import { format } from "date-fns"
-import {
-  initializeSocket,
-  disconnectSocket,
-} from "../services/socket"
+import { initializeSocket, disconnectSocket } from "../services/socket"
 import { getQRCode } from "../services/api"
 import { CheckInEvent } from "../types"
 import successSound from "../assets/success.mp3"
-import errorSound from "../assets/error.mp3"
+import errorSound from "../assets/error2.mp3"
 import { useLoading } from "../contexts/LoadingContext"
 import { motion } from "framer-motion"
 import toast from "react-hot-toast"
 
 const QRDisplay = () => {
   const [qrCode, setQRCode] = useState<string>("")
+  const [date, setDate] = useState<string>("")
   const [checkInEvent, setCheckInEvent] = useState<CheckInEvent | null>(null)
-  const [subscriptionError, setSubscriptionError] = useState<boolean>(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const errorAudioRef = useRef<HTMLAudioElement | null>(null)
   const [error, setError] = useState<string>("")
-  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(false)
   const { isLoading, setIsLoading } = useLoading()
 
   useEffect(() => {
-    console.log('Socket URL:', import.meta.env.VITE_SOCKET_URL);
+    console.log("Socket URL:", import.meta.env.VITE_SOCKET_URL)
     const socket = initializeSocket()
 
     const handleConnect = () => {
@@ -41,9 +38,21 @@ const QRDisplay = () => {
       console.log("Check-in success received:", data)
       setCheckInEvent(data)
       if (audioEnabled && audioRef.current) {
-        audioRef.current.play().catch(err => {
-          console.warn('Failed to play success sound:', err);
-        });
+        audioRef.current.currentTime = 0
+        audioRef.current.play().catch((err) => {
+          console.warn("Failed to play success sound:", err)
+        })
+      }
+    }
+
+    const handleNoActiveSubscription = (data: CheckInEvent) => {
+      console.log("No active subscription detected", data)
+      setCheckInEvent(data)
+      if (audioEnabled && errorAudioRef.current) {
+        errorAudioRef.current.currentTime = 0
+        errorAudioRef.current.play().catch((err) => {
+          console.warn("Failed to play error sound:", err)
+        })
       }
     }
 
@@ -51,32 +60,21 @@ const QRDisplay = () => {
       console.log("QR code refresh received:", data)
       setQRCode(data.qrCodeData)
       setCheckInEvent(null)
+      setError("")
     }
 
     const handleCheckInExists = (data: CheckInEvent) => {
       console.log("Check-in exists received:", data)
       setCheckInEvent(data)
       if (audioEnabled && audioRef.current) {
-        audioRef.current.play().catch(err => {
-          console.warn('Failed to play success sound:', err);
-        });
+        audioRef.current.play().catch((err) => {
+          console.warn("Failed to play success sound:", err)
+        })
       }
     }
 
     const handleDisconnect = () => {
       console.log("Disconnected from WebSocket")
-    }
-
-    const handleNoActiveSubscription = () => {
-      console.log("No active subscription detected")
-      setSubscriptionError(true)
-      setCheckInEvent(null)
-      setQRCode("")
-      if (audioEnabled && errorAudioRef.current) {
-        errorAudioRef.current.play().catch(err => {
-          console.warn('Failed to play error sound:', err);
-        });
-      }
     }
 
     socket.on("connect", handleConnect)
@@ -104,12 +102,14 @@ const QRDisplay = () => {
   const fetchQRCode = async () => {
     setIsLoading(true)
     try {
-      const data = await getQRCode()
+      const data = await getQRCode();
+      console.log("QR Code data:", data)
       setQRCode(data.qrCodeData)
-      toast.success('QR Code updated successfully')
+      setDate(data.date)
+      toast.success("QR Code updated successfully")
     } catch (err) {
       setError("Failed to fetch QR code")
-      toast.error('Failed to fetch QR code')
+      toast.error("Failed to fetch QR code")
     } finally {
       setIsLoading(false)
     }
@@ -128,20 +128,27 @@ const QRDisplay = () => {
   }
 
   const initializeAudio = () => {
-    Promise.all([
-      audioRef.current?.play(),
-      errorAudioRef.current?.play()
-    ]).then(() => {
-      audioRef.current?.pause();
-      audioRef.current?.load();
-      errorAudioRef.current?.pause();
-      errorAudioRef.current?.load();
-      setAudioEnabled(true);
-    }).catch(err => {
-      console.warn('Audio autoplay failed:', err);
-      setAudioEnabled(false);
-    });
-  };
+    if (!audioRef?.current || !errorAudioRef?.current) return
+
+    audioRef.current.currentTime = 0
+    errorAudioRef.current.currentTime = 0
+    
+    audioRef.current.volume = 0.9
+    errorAudioRef.current.volume = 0.9
+
+    Promise.all([audioRef.current.play(), errorAudioRef.current.play()])
+      .then(() => {
+        audioRef.current!.pause()
+        errorAudioRef.current!.pause()
+        audioRef.current!.currentTime = 0
+        errorAudioRef.current!.currentTime = 0
+        setAudioEnabled(true)
+      })
+      .catch((err) => {
+        console.warn("Audio autoplay failed:", err)
+        setAudioEnabled(false)
+      })
+  }
 
   if (isLoading) {
     return (
@@ -159,26 +166,19 @@ const QRDisplay = () => {
     )
   }
 
-  if (error || subscriptionError) {
+  if (error) {
     return (
       <div className="flex h-screen items-center justify-center bg-gradient-to-br from-amber-800 to-amber-900 dark:from-amber-700 dark:to-amber-800">
         <div className="text-center text-amber-50 p-8 backdrop-blur-sm bg-white/20 rounded-xl max-w-md">
-          <h2 className="text-3xl font-bold mb-4">
-            {subscriptionError ? "Subscription Required" : "Error"}
-          </h2>
-          <p className="mb-6">
-            {subscriptionError 
-              ? "Your subscription is not active. Please contact support to restore access."
-              : error}
-          </p>
-          {!subscriptionError && (
-            <button
-              onClick={fetchQRCode}
-              className="mt-4 rounded-lg bg-amber-600 px-6 py-3 text-white hover:bg-amber-700 transition-all hover:scale-105 active:scale-95 font-medium"
-            >
-              Retry
-            </button>
-          )}
+          <h2 className="text-3xl font-bold mb-4">{"Error"}</h2>
+          <p className="mb-6">{error}</p>
+
+          <button
+            onClick={fetchQRCode}
+            className="mt-4 rounded-lg bg-amber-600 px-6 py-3 text-white hover:bg-amber-700 transition-all hover:scale-105 active:scale-95 font-medium"
+          >
+            Retry
+          </button>
         </div>
       </div>
     )
@@ -219,7 +219,11 @@ const QRDisplay = () => {
       <main className="flex-1 flex items-center justify-center p-4">
         {checkInEvent ? (
           <div className="animate-fade-in text-center transform transition-all duration-500 scale-105">
-            <div className="mx-auto mb-4 h-32 w-32 overflow-hidden rounded-full ring-6 ring-red-600 dark:ring-red-500 shadow-2xl">
+            <div className={`mx-auto mb-4 h-32 w-32 overflow-hidden rounded-full shadow-2xl ${
+              checkInEvent.message.includes('Subscription expired') 
+                ? 'ring-6 ring-amber-600 dark:ring-amber-500'
+                : 'ring-6 ring-red-600 dark:ring-red-500'
+            }`}>
               {checkInEvent.user.avatar ? (
                 <img
                   src={checkInEvent.user.avatar}
@@ -228,16 +232,28 @@ const QRDisplay = () => {
                 />
               ) : (
                 <div className="h-full w-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                  <svg className="h-20 w-20 text-gray-500 dark:text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    className="h-20 w-20 text-gray-500 dark:text-gray-400"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                   </svg>
                 </div>
               )}
             </div>
-            <h2 className="mb-2 text-3xl font-bold text-gray-800 dark:text-gray-100">
+            <h2 className={`mb-2 text-3xl font-bold ${
+              checkInEvent.message.includes('Subscription expired')
+                ? 'text-amber-800 dark:text-amber-200'
+                : 'text-gray-800 dark:text-gray-100'
+            }`}>
               Welcome, {checkInEvent.user.firstName}!
             </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300 mb-1">
+            <p className={`text-lg mb-1 ${
+              checkInEvent.message.includes('Subscription expired')
+                ? 'text-amber-700 dark:text-amber-300'
+                : 'text-gray-600 dark:text-gray-300'
+            }`}>
               {checkInEvent.message}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
