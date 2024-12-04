@@ -9,4 +9,5 @@ export interface CheckInEvent {
   checkInDay: string
   user: User
   timestamp: string
+  message: string
 }

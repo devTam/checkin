@@ -7,6 +7,7 @@ import {
 import { getQRCode } from "../services/api"
 import { CheckInEvent } from "../types"
 import successSound from "../assets/success.mp3"
+import errorSound from "../assets/error.mp3"
 import { useLoading } from "../contexts/LoadingContext"
 import { motion } from "framer-motion"
 import toast from "react-hot-toast"
@@ -14,7 +15,9 @@ import toast from "react-hot-toast"
 const QRDisplay = () => {
   const [qrCode, setQRCode] = useState<string>("")
   const [checkInEvent, setCheckInEvent] = useState<CheckInEvent | null>(null)
+  const [subscriptionError, setSubscriptionError] = useState<boolean>(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const errorAudioRef = useRef<HTMLAudioElement | null>(null)
   const [error, setError] = useState<string>("")
   const [audioEnabled, setAudioEnabled] = useState(false);
   const { isLoading, setIsLoading } = useLoading()
@@ -64,12 +67,25 @@ const QRDisplay = () => {
       console.log("Disconnected from WebSocket")
     }
 
+    const handleNoActiveSubscription = () => {
+      console.log("No active subscription detected")
+      setSubscriptionError(true)
+      setCheckInEvent(null)
+      setQRCode("")
+      if (audioEnabled && errorAudioRef.current) {
+        errorAudioRef.current.play().catch(err => {
+          console.warn('Failed to play error sound:', err);
+        });
+      }
+    }
+
     socket.on("connect", handleConnect)
     socket.on("connect_error", handleConnectError)
     socket.on("checkInSuccess", handleCheckInSuccess)
     socket.on("checkInExists", handleCheckInExists)
     socket.on("qrCodeRefresh", handleQRCodeRefresh)
     socket.on("disconnect", handleDisconnect)
+    socket.on("noActiveSubscription", handleNoActiveSubscription)
 
     socket.on("reconnect_attempt", (attempt) => {
       console.log(`Reconnection attempt ${attempt}`)
@@ -112,18 +128,19 @@ const QRDisplay = () => {
   }
 
   const initializeAudio = () => {
-    if (audioRef.current) {
-      audioRef.current.play()
-        .then(() => {
-          audioRef.current?.pause();
-          audioRef.current?.load();
-          setAudioEnabled(true);
-        })
-        .catch(err => {
-          console.warn('Audio autoplay failed:', err);
-          setAudioEnabled(false);
-        });
-    }
+    Promise.all([
+      audioRef.current?.play(),
+      errorAudioRef.current?.play()
+    ]).then(() => {
+      audioRef.current?.pause();
+      audioRef.current?.load();
+      errorAudioRef.current?.pause();
+      errorAudioRef.current?.load();
+      setAudioEnabled(true);
+    }).catch(err => {
+      console.warn('Audio autoplay failed:', err);
+      setAudioEnabled(false);
+    });
   };
 
   if (isLoading) {
@@ -142,18 +159,26 @@ const QRDisplay = () => {
     )
   }
 
-  if (error) {
+  if (error || subscriptionError) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-red-800 to-red-900 dark:from-red-700 dark:to-red-800">
-        <div className="text-center text-red-50 p-8 backdrop-blur-sm bg-white/20 rounded-xl">
-          <h2 className="text-3xl font-bold mb-4">Error</h2>
-          <p className="mb-6">{error}</p>
-          <button
-            onClick={fetchQRCode}
-            className="mt-4 rounded-lg bg-red-600 px-6 py-3 text-white hover:bg-red-700 transition-all hover:scale-105 active:scale-95 font-medium"
-          >
-            Retry
-          </button>
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-amber-800 to-amber-900 dark:from-amber-700 dark:to-amber-800">
+        <div className="text-center text-amber-50 p-8 backdrop-blur-sm bg-white/20 rounded-xl max-w-md">
+          <h2 className="text-3xl font-bold mb-4">
+            {subscriptionError ? "Subscription Required" : "Error"}
+          </h2>
+          <p className="mb-6">
+            {subscriptionError 
+              ? "Your subscription is not active. Please contact support to restore access."
+              : error}
+          </p>
+          {!subscriptionError && (
+            <button
+              onClick={fetchQRCode}
+              className="mt-4 rounded-lg bg-amber-600 px-6 py-3 text-white hover:bg-amber-700 transition-all hover:scale-105 active:scale-95 font-medium"
+            >
+              Retry
+            </button>
+          )}
         </div>
       </div>
     )
@@ -168,6 +193,7 @@ const QRDisplay = () => {
       role="main"
     >
       <audio ref={audioRef} src={successSound} preload="auto" />
+      <audio ref={errorAudioRef} src={errorSound} preload="auto" />
 
       <button
         onClick={audioEnabled ? () => setAudioEnabled(false) : initializeAudio}
@@ -212,7 +238,7 @@ const QRDisplay = () => {
               Welcome, {checkInEvent.user.firstName}!
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-300 mb-1">
-              Check-in successful
+              {checkInEvent.message}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {format(new Date(checkInEvent.timestamp), "h:mm a")}
