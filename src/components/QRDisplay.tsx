@@ -11,7 +11,6 @@ import toast from "react-hot-toast"
 
 const QRDisplay = () => {
   const [qrCode, setQRCode] = useState<string>("")
-  const [date, setDate] = useState<string>("")
   const [checkInEvent, setCheckInEvent] = useState<CheckInEvent | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const errorAudioRef = useRef<HTMLAudioElement | null>(null)
@@ -105,7 +104,6 @@ const QRDisplay = () => {
       const data = await getQRCode();
       console.log("QR Code data:", data)
       setQRCode(data.qrCodeData)
-      setDate(data.date)
       toast.success("QR Code updated successfully")
     } catch (err) {
       setError("Failed to fetch QR code")
