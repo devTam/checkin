@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react"
 import { format } from "date-fns"
-import { initializeSocket, disconnectSocket } from "../services/socket"
 import { getQRCode } from "../services/api"
 import { CheckInEvent } from "../types"
 import successSound from "../assets/success.mp3"
@@ -8,6 +7,7 @@ import errorSound from "../assets/error2.mp3"
 import { useLoading } from "../contexts/LoadingContext"
 import { motion } from "framer-motion"
 import toast from "react-hot-toast"
+import { useWebSocket } from "../services/socket"
 
 const QRDisplay = () => {
   const [qrCode, setQRCode] = useState<string>("")
@@ -16,93 +16,73 @@ const QRDisplay = () => {
   const errorAudioRef = useRef<HTMLAudioElement | null>(null)
   const [error, setError] = useState<string>("")
   const [audioEnabled, setAudioEnabled] = useState(false)
-  const { isLoading, setIsLoading } = useLoading()
+  const { isLoading, setIsLoading } = useLoading();
+
+  const { socket, isConnected } = useWebSocket();
 
   useEffect(() => {
-    console.log("Socket URL:", import.meta.env.VITE_SOCKET_URL)
-    const socket = initializeSocket()
-
-    const handleConnect = () => {
+    if (isConnected) {
       fetchQRCode()
-      console.log("Connected to WebSocket")
-      setError("")
     }
+  }, [isConnected])
 
-    const handleConnectError = (err: Error) => {
-      console.error("Connection error:", err)
-      setError(`Failed to connect to server: ${err.message}`)
+  const handleCheckInSuccess = (data: CheckInEvent) => {
+    setCheckInEvent(data)
+    if (audioEnabled && audioRef.current) {
+      audioRef.current.currentTime = 0
+      audioRef.current.play().catch((err) => {
+        console.warn("Failed to play success sound:", err)
+      })
     }
+  }
 
-    const handleCheckInSuccess = (data: CheckInEvent) => {
-      console.log("Check-in success received:", data)
-      setCheckInEvent(data)
-      if (audioEnabled && audioRef.current) {
-        audioRef.current.currentTime = 0
-        audioRef.current.play().catch((err) => {
-          console.warn("Failed to play success sound:", err)
-        })
-      }
+  const handleNoActiveSubscription = (data: CheckInEvent) => {
+    setCheckInEvent(data)
+    if (audioEnabled && errorAudioRef.current) {
+      errorAudioRef.current.currentTime = 0
+      errorAudioRef.current.play().catch((err) => {
+        console.warn("Failed to play error sound:", err)
+      })
     }
+  }
 
-    const handleNoActiveSubscription = (data: CheckInEvent) => {
-      console.log("No active subscription detected", data)
-      setCheckInEvent(data)
-      if (audioEnabled && errorAudioRef.current) {
-        errorAudioRef.current.currentTime = 0
-        errorAudioRef.current.play().catch((err) => {
-          console.warn("Failed to play error sound:", err)
-        })
-      }
+  const handleQRCodeRefresh = (data: { qrCodeData: string }) => {
+    setQRCode(data.qrCodeData)
+    setCheckInEvent(null)
+    setError("")
+  }
+
+  const handleCheckInExists = (data: CheckInEvent) => {
+    setCheckInEvent(data)
+    if (audioEnabled && audioRef.current) {
+      audioRef.current.play().catch((err) => {
+        console.warn("Failed to play success sound:", err)
+      })
     }
+  }
 
-    const handleQRCodeRefresh = (data: { qrCodeData: string }) => {
-      console.log("QR code refresh received:", data)
-      setQRCode(data.qrCodeData)
-      setCheckInEvent(null)
-      setError("")
-    }
-
-    const handleCheckInExists = (data: CheckInEvent) => {
-      console.log("Check-in exists received:", data)
-      setCheckInEvent(data)
-      if (audioEnabled && audioRef.current) {
-        audioRef.current.play().catch((err) => {
-          console.warn("Failed to play success sound:", err)
-        })
-      }
-    }
-
-    const handleDisconnect = () => {
-      console.log("Disconnected from WebSocket")
-    }
-
-    socket.on("connect", handleConnect)
-    socket.on("connect_error", handleConnectError)
+  useEffect(() => {
     socket.on("checkInSuccess", handleCheckInSuccess)
     socket.on("checkInExists", handleCheckInExists)
     socket.on("qrCodeRefresh", handleQRCodeRefresh)
-    socket.on("disconnect", handleDisconnect)
     socket.on("noActiveSubscription", handleNoActiveSubscription)
 
-    socket.on("reconnect_attempt", (attempt) => {
-      console.log(`Reconnection attempt ${attempt}`)
-    })
-
-    socket.on("reconnect_error", (err) => {
-      console.error("Reconnection error:", err)
-      setError(`Failed to reconnect: ${err.message}`)
-    })
-
     return () => {
-      disconnectSocket()
+      socket.off("checkInSuccess", handleCheckInSuccess)
+      socket.off("checkInExists", handleCheckInExists)
+      socket.off("qrCodeRefresh", handleQRCodeRefresh)
+      socket.off("noActiveSubscription", handleNoActiveSubscription)
+      socket.off("disconnect")
     }
-  }, [audioEnabled])
+  }, [socket, handleCheckInSuccess, handleCheckInExists, handleQRCodeRefresh, handleNoActiveSubscription])
+
+
+ 
 
   const fetchQRCode = async () => {
     setIsLoading(true)
     try {
       const data = await getQRCode();
-      console.log("QR Code data:", data)
       setQRCode(data.qrCodeData)
       toast.success("QR Code updated successfully")
     } catch (err) {
