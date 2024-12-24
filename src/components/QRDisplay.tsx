@@ -202,9 +202,9 @@ const QRDisplay = () => {
                 ? 'ring-6 ring-amber-600 dark:ring-amber-500'
                 : 'ring-6 ring-red-600 dark:ring-red-500'
             }`}>
-              {checkInEvent.user.avatar ? (
+              {checkInEvent.user.avatarUrl ? (
                 <img
-                  src={checkInEvent.user.avatar}
+                  src={checkInEvent.user.avatarUrl}
                   alt="Profile"
                   className="h-full w-full object-cover"
                 />
